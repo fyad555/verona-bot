@@ -530,4 +530,4 @@ await processingMessage.edit(
 // تسجيل الدخول
 // ========================================
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
