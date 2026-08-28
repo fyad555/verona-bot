@@ -156,10 +156,7 @@ client.on("messageCreate", async (message) => {
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
-
-        if (!member) {
-            return message.reply("❌ منشن الشخص أو حط ID صحيح للعضو");
-        }
+        if (!member) return;
 
         if (member.user.bot) {
             return message.reply("❌ ما تقدر تسجن البوتات");
@@ -269,10 +266,7 @@ client.on("messageCreate", async (message) => {
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
-
-        if (!member) {
-            return message.reply("❌ منشن الشخص أو حط ID صحيح للعضو");
-        }
+        if (!member) return;
 
         if (member.user.bot) {
             return message.reply("❌ نظام السجن مخصص للأعضاء فقط");
@@ -316,7 +310,7 @@ client.on("messageCreate", async (message) => {
             delete jailData[member.id];
             saveJailData(jailData);
 
-            await processingMessage.edit(`تم تحرير ${member}\nاضحك كليوم`);
+            await processingMessage.edit(`تم تحرير ${member}`);
 
         } catch (error) {
             console.error("❌ خطأ أثناء فك السجن:", error);
