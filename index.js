@@ -331,16 +331,13 @@ client.on("messageCreate", async (message) => {
 
         try {
             // 1. إزالة رتبة السجن أولاً
-            await member.roles.remove(jailRole);
+         await member.roles.remove([jailRole, JAIL_ROLE_ID]).catch(() => {});
 
-            // 2. تصفية وإضافة الرتب المحفوظة المقبولة فقط دون المساس بالبوستر
-            const validRolesToAdd = savedData.roles
-                .map(roleId => message.guild.roles.cache.get(roleId))
-                .filter(role => role)
-                .filter(role => !role.managed)
-                .filter(role => role.position < message.guild.members.me.roles.highest.position)
-                .map(role => role.id);
-
+        // 2. تصفية وإضافة الرتب المحفوظة فقط دون المساس بالبوستر
+        const validRolesToAdd = savedData.roles
+            .map(roleId => message.guild.roles.cache.get(roleId))
+            .filter(role => role && !role.managed && role.id !== JAIL_ROLE_ID && role.position < message.guild.members.me.roles.highest.position)
+            .map(role => role.id);
             if (validRolesToAdd.length > 0) {
                 await member.roles.add(validRolesToAdd);
             }
