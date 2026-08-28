@@ -161,6 +161,28 @@ client.on("messageCreate", async (message) => {
 
     if (!message.guild) return;
 
+    // 1. جلب العضو المراد سجنه من الرسالة
+    const targetMember = await getTargetMember(message);
+
+    if (targetMember) {
+        // 2. حماية صاحب السيرفر (لا أحد يستطيع سجنه نهائياً)
+        if (targetMember.id === message.guild.ownerId) {
+            return message.reply("❌ لا يمكنك سجن صاحب السيرفر!");
+        }
+
+        const isOwner = message.author.id === message.guild.ownerId;
+        const isTargetAdmin = targetMember.permissions.has("Administrator");
+
+        // 3. تطبيق القيود إذا لم يكن المنفّذ هو Owner السيرفر
+        if (!isOwner) {
+            if (isTargetAdmin) {
+                return message.reply("❌ لا يمكنك سجن هذا الشخص لأنه إداري!");
+            }
+            if (targetMember.roles.highest.position >= message.member.roles.highest.position) {
+                return message.reply("❌ لا يمكنك سجن شخص رتبته أعلى منك أو تساؤيك!");
+            }
+        }
+    }
     // ========================================
     // أمر السجن
     // سجن @الشخص
