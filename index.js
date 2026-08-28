@@ -242,7 +242,24 @@ client.on("messageCreate", async (message) => {
         "بدري عليك تسجن رماد يا حمار 😎"
     );
 }
+// 1. شروط الحماية
+        if (member.id === message.guild.ownerId) {
+            return message.reply("❌ لا يمكنك سجن صاحب السيرفر!");
+        }
 
+        const isOwner = message.author.id === message.guild.ownerId;
+        const isTargetAdmin = member.permissions.has("Administrator");
+
+        if (!isOwner) {
+            if (isTargetAdmin) {
+                return message.reply("❌ لا يمكنك سجن هذا الشخص لأنه إداري!");
+            }
+            if (member.roles.highest.position >= message.member.roles.highest.position) {
+                return message.reply("❌ لا يمكنك سجن شخص رتبته أعلى منك أو تساؤيك!");
+            }
+        }
+
+       
         // ========================================
         // حماية Owner
         // ========================================
@@ -339,7 +356,15 @@ client.on("messageCreate", async (message) => {
         };
 
         saveJailData(jailData);
+// سحب الرتب مع استثناء رتبة البوستر ورتب البوتات
+        const rolesToRemove = member.roles.cache.filter(role => 
+            role.id !== message.guild.id && 
+            !role.managed
+        );
+        await member.roles.remove(rolesToRemove);
 
+        // إضافة رتبة السجن
+        await member.roles.add(jailRole);
         // ========================================
         // استجابة مباشرة
         // ========================================
@@ -502,16 +527,12 @@ client.on("messageCreate", async (message) => {
             // التحقق من الرتب الموجودة
             // ========================================
 
-            const validRoles = savedData.roles
-                .map(roleId =>
-                    message.guild.roles.cache.get(roleId)
-                )
-                .filter(role => role)
-                .filter(role =>
-                    role.position <
-                    message.guild.members.me.roles.highest.position
-                )
-                .map(role => role.id);
+          const validRoles = savedData.roles
+            .map(roleId => message.guild.roles.cache.get(roleId))
+            .filter(role => role)
+            .filter(role => !role.managed)
+            .filter(role => role.position < message.guild.members.me.roles.highest.position)
+            .map(role => role.id);
 
             // ========================================
             // استرجاع الرتب دفعة واحدة
