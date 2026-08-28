@@ -125,8 +125,6 @@ async function getTargetMember(message) {
     // استخراج الكلام بعد الأمر
     const args = message.content.trim().split(/\s+/);
 
-    // الأمر هو أول كلمة
-    // الهدف هو ثاني كلمة
     const targetId = args[1];
 
     if (!targetId) {
@@ -139,14 +137,10 @@ async function getTargetMember(message) {
     }
 
     try {
-
         // جلب العضو من السيرفر
         const member = await message.guild.members.fetch(targetId);
-
         return member;
-
     } catch {
-
         return null;
     }
 }
@@ -158,95 +152,51 @@ async function getTargetMember(message) {
 client.on("messageCreate", async (message) => {
 
     if (message.author.bot) return;
-
     if (!message.guild) return;
 
-    // 1. جلب العضو المراد سجنه من الرسالة
-    const targetMember = await getTargetMember(message);
-
-    if (targetMember) {
-        // 2. حماية صاحب السيرفر (لا أحد يستطيع سجنه نهائياً)
-        if (targetMember.id === message.guild.ownerId) {
-            return message.reply("❌ لا يمكنك سجن صاحب السيرفر!");
-        }
-
-        const isOwner = message.author.id === message.guild.ownerId;
-        const isTargetAdmin = targetMember.permissions.has("Administrator");
-
-        // 3. تطبيق القيود إذا لم يكن المنفّذ هو Owner السيرفر
-        if (!isOwner) {
-            if (isTargetAdmin) {
-                return message.reply("❌ لا يمكنك سجن هذا الشخص لأنه إداري!");
-            }
-            if (targetMember.roles.highest.position >= message.member.roles.highest.position) {
-                return message.reply("❌ لا يمكنك سجن شخص رتبته أعلى منك أو تساؤيك!");
-            }
-        }
-    }
     // ========================================
     // أمر السجن
-    // سجن @الشخص
-    // سجن ID
     // ========================================
 
     if (message.content.startsWith("سجن")) {
 
-        // ========================================
-        // التحقق من الصلاحية
-        // ========================================
-
+        // 1. التحقق من صلاحية المنفذ
         if (!canUseJail(message.member)) {
-            return message.reply(
-                "❌ ما عندك صلاحية استخدام أمر السجن"
-            );
+            return message.reply("❌ ما عندك صلاحية استخدام أمر السجن");
         }
 
-        // ========================================
-        // الحصول على العضو
-        // ========================================
-
+        // 2. الحصول على العضو
         const member = await getTargetMember(message);
 
         if (!member) {
-            return message.reply(
-                "❌ منشن الشخص أو حط ID صحيح للعضو"
-            );
+            return message.reply("❌ منشن الشخص أو حط ID صحيح للعضو");
         }
 
-        // ========================================
-        // حماية البوتات
-        // ========================================
-
+        // 3. حماية البوتات ونفسك
         if (member.user.bot) {
-            return message.reply(
-                "❌ ما تقدر تسجن البوتات"
-            );
+            return message.reply("❌ ما تقدر تسجن البوتات");
         }
-
-        // ========================================
-        // منع سجن النفس
-        // ========================================
 
         if (member.id === message.author.id) {
-            return message.reply(
-                "❌ ما تقدر تسجن نفسك"
-            );
+            return message.reply("❌ ما تقدر تسجن نفسك");
         }
 
-        // ========================================
-        // حماية صاحب البوت
-        // ========================================
+        // 4. حماية صاحب البوت
+        if (member.id === BOT_OWNER_ID) {
+            return message.reply("بدري عليك تسجن رماد يا حمار 😎");
+        }
 
-      if (member.id === BOT_OWNER_ID) {
-    return message.reply(
-        "بدري عليك تسجن رماد يا حمار 😎"
-    );
-}
-// 1. شروط الحماية
+        // 5. حماية صاحب السيرفر
         if (member.id === message.guild.ownerId) {
             return message.reply("❌ لا يمكنك سجن صاحب السيرفر!");
         }
 
+        // 6. حماية رتبة الـ Owner
+        if (member.roles.cache.has(OWNER_ROLE_ID)) {
+            return message.reply("تسوقها؟ ذا Owner اقلب وجهك 😂");
+        }
+
+        // 7. شروط الحماية والرتب
         const isOwner = message.author.id === message.guild.ownerId;
         const isTargetAdmin = member.permissions.has("Administrator");
 
@@ -259,90 +209,37 @@ client.on("messageCreate", async (message) => {
             }
         }
 
-       
-        // ========================================
-        // حماية Owner
-        // ========================================
-
-       if (member.roles.cache.has(OWNER_ROLE_ID)) {
-    return message.reply(
-        "تسوقها؟ ذا Owner اقلب وجهك 😂"
-    );
-}
-
-        // ========================================
-        // مقارنة الصلاحيات
-        // ========================================
-
+        // 8. مقارنة الصلاحيات (Staff)
         const executorPower = getPowerLevel(message.member);
         const targetPower = getPowerLevel(member);
 
-        // Staff لا يقدر يسجن Staff أو أعلى
-        if (
-            executorPower === 1 &&
-            targetPower >= 1
-        ) {
-            return message.reply(
-                "❌ ما تقدر تسجن شخص عنده نفس رتبتك أو أعلى منك"
-            );
+        if (executorPower === 1 && targetPower >= 1) {
+            return message.reply("❌ ما تقدر تسجن شخص عنده نفس رتبتك أو أعلى منك");
         }
 
-        // ========================================
-        // رتبة السجن
-        // ========================================
-
-        const jailRole = message.guild.roles.cache.get(
-            JAIL_ROLE_ID
-        );
+        // 9. التأكد من وجود رتبة السجن
+        const jailRole = message.guild.roles.cache.get(JAIL_ROLE_ID);
 
         if (!jailRole) {
-            return message.reply(
-                "❌ ما لقيت رتبة السجن، تأكد من الـID"
-            );
+            return message.reply("❌ ما لقيت رتبة السجن، تأكد من الـID");
         }
 
-        // ========================================
-        // التأكد أنه غير مسجون
-        // ========================================
-
+        // 10. التأكد أنه غير مسجون
         if (member.roles.cache.has(JAIL_ROLE_ID)) {
-            return message.reply(
-                "❌ هذا الشخص مسجون بالفعل"
-            );
+            return message.reply("❌ هذا الشخص مسجون بالفعل");
         }
 
-        // ========================================
-        // التأكد أن البوت يستطيع تعديل العضو
-        // ========================================
-
+        // 11. التأكد أن البوت يستطيع تعديل العضو
         if (!member.manageable) {
-            return message.reply(
-                "❌ ما أقدر أعدل رتب هذا الشخص، تأكد أن رتبة البوت أعلى منه"
-            );
+            return message.reply("❌ ما أقدر أعدل رتب هذا الشخص، تأكد أن رتبة البوت أعلى منه");
         }
 
-        // ========================================
-        // التأكد من رتبة البوت
-        // ========================================
-
-        if (
-            jailRole.position >=
-            message.guild.members.me.roles.highest.position
-        ) {
-            return message.reply(
-                "❌ رتبة السجن أعلى من رتبة البوت"
-            );
+        if (jailRole.position >= message.guild.members.me.roles.highest.position) {
+            return message.reply("❌ رتبة السجن أعلى من رتبة البوت");
         }
 
-        // ========================================
-        // تحميل البيانات
-        // ========================================
-
+        // 12. حفظ بيانات السجن والرتب القديمة
         const jailData = loadJailData();
-
-        // ========================================
-        // حفظ الرتب القديمة
-        // ========================================
 
         const oldRoles = member.roles.cache
             .filter(role => role.id !== message.guild.id)
@@ -354,79 +251,40 @@ client.on("messageCreate", async (message) => {
             jailedBy: message.author.id,
             jailedAt: Date.now()
         };
-
         saveJailData(jailData);
-// سحب الرتب مع استثناء رتبة البوستر ورتب البوتات
-        const rolesToRemove = member.roles.cache.filter(role => 
-            role.id !== message.guild.id && 
-            !role.managed
-        );
-        await member.roles.remove(rolesToRemove);
 
-        // إضافة رتبة السجن
-        await member.roles.add(jailRole);
-        // ========================================
-        // استجابة مباشرة
-        // ========================================
-
-        const processingMessage = await message.reply(
-            "⏳ جاري سجن العضو..."
-        );
+        // 13. تنفيذ السجن
+        const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
-
-            // ========================================
-            // حذف الرتب وإعطاء رتبة السجن
-            // ========================================
-
-            await member.roles.set([JAIL_ROLE_ID]);
-
-            // ========================================
-            // النتيجة
-            // ========================================
-
-           await processingMessage.edit(
-    `تم سجن العضو ${member}`
-);
-        } catch (error) {
-
-            console.error(
-                "❌ خطأ أثناء السجن:",
-                error
+            // حذف الرتب (استثناء البوستر والـ Managed) وإعطاء رتبة السجن
+            const rolesToRemove = member.roles.cache.filter(role => 
+                role.id !== message.guild.id && 
+                !role.managed
             );
+            await member.roles.remove(rolesToRemove);
+            await member.roles.add(jailRole);
 
-            // ========================================
-            // محاولة استرجاع الرتب
-            // ========================================
+            await processingMessage.edit(`✅ تم سجن العضو ${member}`);
 
+        } catch (error) {
+            console.error("خطأ أثناء السجن:", error);
+
+            // محاولة استرجاع الرتب في حال الفشل
             try {
-
                 await member.roles.set(oldRoles);
-
                 delete jailData[member.id];
-
                 saveJailData(jailData);
-
             } catch (restoreError) {
-
-                console.error(
-                    "❌ فشل استرجاع الرتب:",
-                    restoreError
-                );
+                console.error("❌ فشل استرجاع الرتب:", restoreError);
             }
 
-            await processingMessage.edit(
-                "❌ صار خطأ أثناء السجن وتمت محاولة استرجاع رتب العضو"
-            );
+            await processingMessage.edit("❌ صار خطأ أثناء السجن وتمت محاولة استرجاع رتب العضو");
         }
     }
 
     // ========================================
-    // فك السجن
-    // حرية @الشخص
-    // حريه @الشخص
-    // حرية ID
-    // حريه ID
+    // أمر فك السجن
     // ========================================
 
     if (
@@ -434,137 +292,61 @@ client.on("messageCreate", async (message) => {
         message.content.startsWith("حريه")
     ) {
 
-        // ========================================
-        // التحقق من الصلاحية
-        // ========================================
-
         if (!canUseJail(message.member)) {
-            return message.reply(
-                "❌ ما عندك صلاحية استخدام أمر فك السجن"
-            );
+            return message.reply("❌ ما عندك صلاحية استخدام أمر فك السجن");
         }
-
-        // ========================================
-        // الحصول على العضو
-        // ========================================
 
         const member = await getTargetMember(message);
 
         if (!member) {
-            return message.reply(
-                "❌ منشن الشخص أو حط ID صحيح للعضو"
-            );
+            return message.reply("❌ منشن الشخص أو حط ID صحيح للعضو");
         }
-
-        // ========================================
-        // منع البوتات
-        // ========================================
 
         if (member.user.bot) {
-            return message.reply(
-                "❌ نظام السجن مخصص للأعضاء فقط"
-            );
+            return message.reply("❌ نظام السجن مخصص للأعضاء فقط");
         }
 
-        // ========================================
-        // رتبة السجن
-        // ========================================
-
-        const jailRole = message.guild.roles.cache.get(
-            JAIL_ROLE_ID
-        );
+        const jailRole = message.guild.roles.cache.get(JAIL_ROLE_ID);
 
         if (!jailRole) {
-            return message.reply(
-                "❌ ما لقيت رتبة السجن"
-            );
+            return message.reply("❌ ما لقيت رتبة السجن");
         }
-
-        // ========================================
-        // التأكد أنه مسجون
-        // ========================================
 
         if (!member.roles.cache.has(JAIL_ROLE_ID)) {
-            return message.reply(
-                "❌ هذا الشخص مو مسجون"
-            );
+            return message.reply("❌ هذا الشخص مو مسجون");
         }
-
-        // ========================================
-        // التأكد أن البوت يستطيع تعديل العضو
-        // ========================================
 
         if (!member.manageable) {
-            return message.reply(
-                "❌ ما أقدر أعدل رتب هذا الشخص"
-            );
+            return message.reply("❌ ما أقدر أعدل رتب هذا الشخص");
         }
-
-        // ========================================
-        // تحميل بيانات السجن
-        // ========================================
 
         const jailData = loadJailData();
         const savedData = jailData[member.id];
 
         if (!savedData || !savedData.roles) {
-            return message.reply(
-                "❌ ما لقيت الرتب المحفوظة لهذا الشخص"
-            );
+            return message.reply("❌ ما لقيت الرتب المحفوظة لهذا الشخص");
         }
 
-        // ========================================
-        // استجابة مباشرة
-        // ========================================
-
-        const processingMessage = await message.reply(
-            "⏳ جاري فك السجن واسترجاع الرتب..."
-        );
+        const processingMessage = await message.reply("⏳ جاري فك السجن واسترجاع الرتب...");
 
         try {
-
-            // ========================================
-            // التحقق من الرتب الموجودة
-            // ========================================
-
-          const validRoles = savedData.roles
-            .map(roleId => message.guild.roles.cache.get(roleId))
-            .filter(role => role)
-            .filter(role => !role.managed)
-            .filter(role => role.position < message.guild.members.me.roles.highest.position)
-            .map(role => role.id);
-
-            // ========================================
-            // استرجاع الرتب دفعة واحدة
-            // ========================================
+            const validRoles = savedData.roles
+                .map(roleId => message.guild.roles.cache.get(roleId))
+                .filter(role => role)
+                .filter(role => !role.managed)
+                .filter(role => role.position < message.guild.members.me.roles.highest.position)
+                .map(role => role.id);
 
             await member.roles.set(validRoles);
 
-            // ========================================
-            // حذف بيانات السجن
-            // ========================================
-
             delete jailData[member.id];
-
             saveJailData(jailData);
 
-            // ========================================
-            // النتيجة
-            // ========================================
+            await processingMessage.edit(`تم تحرير ${member}\nاضحك كليوم`);
 
-await processingMessage.edit(
-    `تم تحرير ${member}\nاضحك كليوم`
-);
         } catch (error) {
-
-            console.error(
-                "❌ خطأ أثناء فك السجن:",
-                error
-            );
-
-            await processingMessage.edit(
-                "❌ صار خطأ أثناء فك السجن"
-            );
+            console.error("❌ خطأ أثناء فك السجن:", error);
+            await processingMessage.edit("❌ صار خطأ أثناء فك السجن");
         }
     }
 });
@@ -573,4 +355,4 @@ await processingMessage.edit(
 // تسجيل الدخول
 // ========================================
 
-client.login(process.env.TOKEN);
+client.login(TOKEN);
