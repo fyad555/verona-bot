@@ -188,7 +188,7 @@ client.on("messageCreate", async (message) => {
 
         // 5. حماية صاحب السيرفر
         if (member.id === message.guild.ownerId) {
-            return message.reply("❌ لا يمكنك سجن صاحب السيرفر!");
+            return message.reply("من جدك انت ؟ ");
         }
 
         // 6. حماية رتبة الـ Owner
@@ -292,8 +292,7 @@ client.on("messageCreate", async (message) => {
         message.content.startsWith("حريه")
     ) {
 
-        if (!canUseJail(message.member)) {
-            return message.reply("❌ ما عندك صلاحية استخدام أمر فك السجن");
+       if (!canUseJail(message.member)) return;
         }
 
         const member = await getTargetMember(message);
@@ -351,11 +350,9 @@ client.on("messageCreate", async (message) => {
             console.error("❌ خطأ أثناء فك السجن:", error);
             await processingMessage.edit("❌ صار خطأ أثناء فك السجن");
         }
-    }
 });
-
 // ========================================
 // تسجيل الدخول
 // ========================================
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
