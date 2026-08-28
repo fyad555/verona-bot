@@ -85,7 +85,6 @@ client.once("clientReady", () => {
 // ========================================
 
 function getPowerLevel(member) {
-
     if (member.id === BOT_OWNER_ID) {
         return 3;
     }
@@ -114,30 +113,24 @@ function canUseJail(member) {
 // ========================================
 
 async function getTargetMember(message) {
-
-    // أولًا: محاولة أخذ العضو من المنشن
     const mentionedMember = message.mentions.members.first();
 
     if (mentionedMember) {
         return mentionedMember;
     }
 
-    // استخراج الكلام بعد الأمر
     const args = message.content.trim().split(/\s+/);
-
     const targetId = args[1];
 
     if (!targetId) {
         return null;
     }
 
-    // التأكد أن الـID أرقام فقط
     if (!/^\d{17,20}$/.test(targetId)) {
         return null;
     }
 
     try {
-        // جلب العضو من السيرفر
         const member = await message.guild.members.fetch(targetId);
         return member;
     } catch {
@@ -160,19 +153,14 @@ client.on("messageCreate", async (message) => {
 
     if (message.content.startsWith("سجن")) {
 
-        // 1. التحقق من صلاحية المنفذ
-        if (!canUseJail(message.member)) {
-            return message.reply("❌ ما عندك صلاحية استخدام أمر السجن");
-        }
+        if (!canUseJail(message.member)) return;
 
-        // 2. الحصول على العضو
         const member = await getTargetMember(message);
 
         if (!member) {
             return message.reply("❌ منشن الشخص أو حط ID صحيح للعضو");
         }
 
-        // 3. حماية البوتات ونفسك
         if (member.user.bot) {
             return message.reply("❌ ما تقدر تسجن البوتات");
         }
@@ -181,22 +169,18 @@ client.on("messageCreate", async (message) => {
             return message.reply("❌ ما تقدر تسجن نفسك");
         }
 
-        // 4. حماية صاحب البوت
         if (member.id === BOT_OWNER_ID) {
             return message.reply("بدري عليك تسجن رماد يا حمار 😎");
         }
 
-        // 5. حماية صاحب السيرفر
         if (member.id === message.guild.ownerId) {
             return message.reply("من جدك انت ؟ ");
         }
 
-        // 6. حماية رتبة الـ Owner
         if (member.roles.cache.has(OWNER_ROLE_ID)) {
             return message.reply("تسوقها؟ ذا Owner اقلب وجهك 😂");
         }
 
-        // 7. شروط الحماية والرتب
         const isOwner = message.author.id === message.guild.ownerId;
         const isTargetAdmin = member.permissions.has("Administrator");
 
@@ -209,7 +193,6 @@ client.on("messageCreate", async (message) => {
             }
         }
 
-        // 8. مقارنة الصلاحيات (Staff)
         const executorPower = getPowerLevel(message.member);
         const targetPower = getPowerLevel(member);
 
@@ -217,19 +200,16 @@ client.on("messageCreate", async (message) => {
             return message.reply("❌ ما تقدر تسجن شخص عنده نفس رتبتك أو أعلى منك");
         }
 
-        // 9. التأكد من وجود رتبة السجن
         const jailRole = message.guild.roles.cache.get(JAIL_ROLE_ID);
 
         if (!jailRole) {
             return message.reply("❌ ما لقيت رتبة السجن، تأكد من الـID");
         }
 
-        // 10. التأكد أنه غير مسجون
         if (member.roles.cache.has(JAIL_ROLE_ID)) {
             return message.reply("❌ هذا الشخص مسجون بالفعل");
         }
 
-        // 11. التأكد أن البوت يستطيع تعديل العضو
         if (!member.manageable) {
             return message.reply("❌ ما أقدر أعدل رتب هذا الشخص، تأكد أن رتبة البوت أعلى منه");
         }
@@ -238,7 +218,6 @@ client.on("messageCreate", async (message) => {
             return message.reply("❌ رتبة السجن أعلى من رتبة البوت");
         }
 
-        // 12. حفظ بيانات السجن والرتب القديمة (استبعاد رتب البوستر والمحمية تلقائياً)
         const jailData = loadJailData();
 
         const oldRoles = member.roles.cache
@@ -254,11 +233,9 @@ client.on("messageCreate", async (message) => {
         };
         saveJailData(jailData);
 
-        // 13. تنفيذ السجن
         const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
-            // حذف الرتب العادية فقط وإضافة رتبة السجن دون لمس البوستر
             const rolesToRemove = member.roles.cache.filter(role => 
                 role.id !== message.guild.id && 
                 !role.managed
@@ -287,13 +264,9 @@ client.on("messageCreate", async (message) => {
     // أمر فك السجن
     // ========================================
 
-    if (
-        message.content.startsWith("حرية") ||
-        message.content.startsWith("حريه")
-    ) {
+    if (message.content.startsWith("حرية") || message.content.startsWith("حريه")) {
 
-       if (!canUseJail(message.member)) return;
-        }
+        if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
 
@@ -329,14 +302,13 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ جاري فك السجن واسترجاع الرتب...");
 
         try {
-            // 1. إزالة رتبة السجن أولاً
-         await member.roles.remove([jailRole, JAIL_ROLE_ID]).catch(() => {});
+            await member.roles.remove([jailRole, JAIL_ROLE_ID]).catch(() => {});
 
-        // 2. تصفية وإضافة الرتب المحفوظة فقط دون المساس بالبوستر
-        const validRolesToAdd = savedData.roles
-            .map(roleId => message.guild.roles.cache.get(roleId))
-            .filter(role => role && !role.managed && role.id !== JAIL_ROLE_ID && role.position < message.guild.members.me.roles.highest.position)
-            .map(role => role.id);
+            const validRolesToAdd = savedData.roles
+                .map(roleId => message.guild.roles.cache.get(roleId))
+                .filter(role => role && !role.managed && role.id !== JAIL_ROLE_ID && role.position < message.guild.members.me.roles.highest.position)
+                .map(role => role.id);
+            
             if (validRolesToAdd.length > 0) {
                 await member.roles.add(validRolesToAdd);
             }
@@ -350,7 +322,10 @@ client.on("messageCreate", async (message) => {
             console.error("❌ خطأ أثناء فك السجن:", error);
             await processingMessage.edit("❌ صار خطأ أثناء فك السجن");
         }
+    }
+
 });
+
 // ========================================
 // تسجيل الدخول
 // ========================================
