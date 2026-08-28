@@ -238,12 +238,13 @@ client.on("messageCreate", async (message) => {
             return message.reply("❌ رتبة السجن أعلى من رتبة البوت");
         }
 
-        // 12. حفظ بيانات السجن والرتب القديمة
+        // 12. حفظ بيانات السجن والرتب القديمة (استبعاد رتب البوستر والمحمية تلقائياً)
         const jailData = loadJailData();
 
         const oldRoles = member.roles.cache
             .filter(role => role.id !== message.guild.id)
             .filter(role => role.id !== JAIL_ROLE_ID)
+            .filter(role => !role.managed)
             .map(role => role.id);
 
         jailData[member.id] = {
@@ -257,7 +258,7 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
-            // حذف الرتب (استثناء البوستر والـ Managed) وإعطاء رتبة السجن
+            // حذف الرتب العادية فقط وإضافة رتبة السجن دون لمس البوستر
             const rolesToRemove = member.roles.cache.filter(role => 
                 role.id !== message.guild.id && 
                 !role.managed
@@ -270,9 +271,8 @@ client.on("messageCreate", async (message) => {
         } catch (error) {
             console.error("خطأ أثناء السجن:", error);
 
-            // محاولة استرجاع الرتب في حال الفشل
             try {
-                await member.roles.set(oldRoles);
+                await member.roles.add(oldRoles);
                 delete jailData[member.id];
                 saveJailData(jailData);
             } catch (restoreError) {
@@ -330,14 +330,20 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ جاري فك السجن واسترجاع الرتب...");
 
         try {
-            const validRoles = savedData.roles
+            // 1. إزالة رتبة السجن أولاً
+            await member.roles.remove(jailRole);
+
+            // 2. تصفية وإضافة الرتب المحفوظة المقبولة فقط دون المساس بالبوستر
+            const validRolesToAdd = savedData.roles
                 .map(roleId => message.guild.roles.cache.get(roleId))
                 .filter(role => role)
                 .filter(role => !role.managed)
                 .filter(role => role.position < message.guild.members.me.roles.highest.position)
                 .map(role => role.id);
 
-            await member.roles.set(validRoles);
+            if (validRolesToAdd.length > 0) {
+                await member.roles.add(validRolesToAdd);
+            }
 
             delete jailData[member.id];
             saveJailData(jailData);
