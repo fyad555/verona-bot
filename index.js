@@ -177,6 +177,10 @@ client.on("messageCreate", async (message) => {
         if (member.id === "1133082717777576089") {
             return message.reply("قم انقلع تسجن حسنة الجميع تخسي");
         }
+        
+        if (member.id === "1412618243461480489") {
+            return message.reply("تبي تسجن الملكه محروم");
+        }
 
         if (member.roles.cache.has(OWNER_ROLE_ID)) {
             return message.reply("تسوقها؟ ذا Owner اقلب وجهك 😂");
