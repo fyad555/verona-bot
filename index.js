@@ -171,7 +171,11 @@ client.on("messageCreate", async (message) => {
         }
 
         if (member.id === message.guild.ownerId) {
-            return message.reply("من جدك انت ؟ ");
+            return message.reply("ذا دادي السيرفر اغلب وجهك ");
+        }
+        
+        if (member.id === "1133082717777576089") {
+            return message.reply("قم انقلع تسجن حسنة الجميع تخسي");
         }
 
         if (member.roles.cache.has(OWNER_ROLE_ID)) {
