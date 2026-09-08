@@ -171,9 +171,9 @@ client.on("messageCreate", async (message) => {
         }
 
         if (member.id === message.guild.ownerId) {
-            return message.reply("ذا دادي السيرفر اغلب وجهك ");
+            return message.reply("ذا دادي السيرفر اقلب وجهك ");
         }
-        
+
         if (member.id === "1133082717777576089") {
             return message.reply("قم انقلع تسجن حسنة الجميع تخسي");
         }
