@@ -3,17 +3,12 @@ const app = express();
 app.get('/', (req, res) => res.send('Bot is active!'));
 app.listen(process.env.PORT || 3000);
 
-const {
-    Client,
-    GatewayIntentBits
-} = require("discord.js");
-
+const { Client, GatewayIntentBits } = require("discord.js");
 const fs = require("fs");
 
 // ========================================
 // الإعدادات
 // ========================================
-
 const TOKEN = process.env.TOKEN;
 
 const STAFF_ROLE_ID = "1532531348408107039";
@@ -24,37 +19,27 @@ const JAIL_ROLE_ID = "1541170009949347880";
 const JAIL_DATA_FILE = "./jail.json";
 
 // ========================================
-// إنشاء ملف البيانات وقراءتها
+// إنشاء وقراءة وحفظ البيانات
 // ========================================
-
 if (!fs.existsSync(JAIL_DATA_FILE)) {
-    fs.writeFileSync(
-        JAIL_DATA_FILE,
-        JSON.stringify({}, null, 2)
-    );
+    fs.writeFileSync(JAIL_DATA_FILE, JSON.stringify({}, null, 2));
 }
 
 function loadJailData() {
     try {
-        return JSON.parse(
-            fs.readFileSync(JAIL_DATA_FILE, "utf8")
-        );
+        return JSON.parse(fs.readFileSync(JAIL_DATA_FILE, "utf8"));
     } catch {
         return {};
     }
 }
 
 function saveJailData(data) {
-    fs.writeFileSync(
-        JAIL_DATA_FILE,
-        JSON.stringify(data, null, 2)
-    );
+    fs.writeFileSync(JAIL_DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 // ========================================
-// إنشاء البوت وإعداد الصلاحيات
+// إنشاء البوت
 // ========================================
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -68,6 +53,9 @@ client.once("clientReady", () => {
     console.log(`✅ البوت اشتغل: ${client.user.tag}`);
 });
 
+// ========================================
+// مساعدة الوظائف الصلاحية والاستهداف
+// ========================================
 function getPowerLevel(member) {
     if (member.id === BOT_OWNER_ID) return 3;
     if (member.roles.cache.has(OWNER_ROLE_ID)) return 2;
@@ -96,20 +84,15 @@ async function getTargetMember(message) {
 }
 
 // ========================================
-// استقبال الأوامر
+// الأحداث والأوامر
 // ========================================
-
 client.on("messageCreate", async (message) => {
+    if (message.author.bot || !message.guild) return;
 
-    if (message.author.bot) return;
-    if (!message.guild) return;
-
-    // ========================================
+    // ----------------------------------------
     // أمر السجن
-    // ========================================
-
+    // ----------------------------------------
     if (message.content.startsWith("سجن")) {
-
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
@@ -120,7 +103,7 @@ client.on("messageCreate", async (message) => {
         if (member.user.bot) return message.reply("❌ ما تقدر تسجن البوتات");
         if (member.id === message.author.id) return message.reply("❌ ما تقدر تسجن نفسك");
 
-        // الحمايات الخاصة
+        // استثناءات الحماية الخاصة
         if (member.id === BOT_OWNER_ID) return message.reply("بدري عليك تسجن رماد يا حمار 😎");
         if (member.id === message.guild.ownerId) return message.reply("من جدك انت ؟ ");
         if (member.id === "1133082717777576089") return message.reply("قم انقلع تسجن حسنة الجميع تخسي");
@@ -145,15 +128,13 @@ client.on("messageCreate", async (message) => {
         }
 
         const jailRole = message.guild.roles.cache.get(JAIL_ROLE_ID);
-        if (!jailRole) return message.reply("❌ ما لقيت رتبة السجن، تأكد من الـID");
+        if (!jailRole) return message.reply("❌ ما لقيت رتبة السجن، تأكد من الـID في الإعدادات");
         if (member.roles.cache.has(JAIL_ROLE_ID)) return message.reply("❌ هذا الشخص مسجون بالفعل");
-        if (!member.manageable) return message.reply("❌ ما أقدر أعدل رتب هذا الشخص، تأكد أن رتبة البوت أعلى منه");
 
+        // حفظ الرتب القديمة قبل سحبها
         const jailData = loadJailData();
         const oldRoles = member.roles.cache
-            .filter(role => role.id !== message.guild.id)
-            .filter(role => role.id !== JAIL_ROLE_ID)
-            .filter(role => !role.managed)
+            .filter(role => role.id !== message.guild.id && role.id !== JAIL_ROLE_ID && !role.managed)
             .map(role => role.id);
 
         jailData[member.id] = {
@@ -166,32 +147,28 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
-            const botHighestRole = message.guild.members.me.roles.highest;
-            const rolesToRemove = member.roles.cache.filter(role => 
-                role.id !== message.guild.id && 
-                !role.managed &&
-                role.position < botHighestRole.position
-            );
-
-            if (rolesToRemove.size > 0) {
-                await member.roles.remove(rolesToRemove).catch(() => {});
+            // سحب الرتب الممكنة فردياً بدون إيقاف أو تعليق البوت
+            for (const roleId of oldRoles) {
+                const roleObj = message.guild.roles.cache.get(roleId);
+                if (roleObj && roleObj.position < message.guild.members.me.roles.highest.position) {
+                    await member.roles.remove(roleObj).catch(() => {});
+                }
             }
 
+            // إعطاء رتبة السجن
             await member.roles.add(jailRole);
             await processingMessage.edit(`✅ تم سجن العضو ${member}`);
 
         } catch (error) {
             console.error("خطأ أثناء السجن:", error);
-            await processingMessage.edit("❌ حدث خطأ أثناء سحب الرتب، تأكد من ترتيب رتبة البوت بالسيرفر!");
+            await processingMessage.edit("❌ حدث خطأ أثناء تنفيذ السجن، تأكد أن رتبة البوت أعلى من رتبة السجن في قائمة الرتب.");
         }
     }
 
-    // ========================================
+    // ----------------------------------------
     // أمر فك السجن
-    // ========================================
-
+    // ----------------------------------------
     if (message.content.startsWith("حرية") || message.content.startsWith("حريه")) {
-
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
@@ -204,24 +181,22 @@ client.on("messageCreate", async (message) => {
 
         const jailData = loadJailData();
         const savedData = jailData[member.id];
-        if (!savedData || !savedData.roles) return message.reply("❌ ما لقيت الرتب المحفوظة لهذا الشخص");
 
         const processingMessage = await message.reply("⏳ جاري فك السجن واسترجاع الرتب...");
 
         try {
             await member.roles.remove([jailRole, JAIL_ROLE_ID]).catch(() => {});
 
-            const validRolesToAdd = savedData.roles
-                .map(roleId => message.guild.roles.cache.get(roleId))
-                .filter(role => role && !role.managed && role.id !== JAIL_ROLE_ID && role.position < message.guild.members.me.roles.highest.position)
-                .map(role => role.id);
-
-            if (validRolesToAdd.length > 0) {
-                await member.roles.add(validRolesToAdd);
+            if (savedData && savedData.roles) {
+                for (const roleId of savedData.roles) {
+                    const roleObj = message.guild.roles.cache.get(roleId);
+                    if (roleObj && !roleObj.managed && roleObj.position < message.guild.members.me.roles.highest.position) {
+                        await member.roles.add(roleObj).catch(() => {});
+                    }
+                }
+                delete jailData[member.id];
+                saveJailData(jailData);
             }
-
-            delete jailData[member.id];
-            saveJailData(jailData);
 
             await processingMessage.edit(`تم تحرير ${member}`);
 
@@ -230,11 +205,9 @@ client.on("messageCreate", async (message) => {
             await processingMessage.edit("❌ صار خطأ أثناء فك السجن");
         }
     }
-
 });
 
 // ========================================
 // تسجيل الدخول
 // ========================================
-
-client.login(process.env.TOKEN);
+client.login(TOKEN);
