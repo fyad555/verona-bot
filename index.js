@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 
-// مسار للحفاظ على نشاط البوت 24/7
+// سيرفر ويب مصغر لإبقاء البوت أونلاين
 app.get('/', (req, res) => res.send('Bot is active and running!'));
 app.listen(process.env.PORT || 3000, () => {
     console.log("🌐 HTTP Server running to keep bot online.");
@@ -10,19 +10,17 @@ app.listen(process.env.PORT || 3000, () => {
 const { Client, GatewayIntentBits } = require("discord.js");
 const fs = require("fs");
 
-// ========================================
-// منع انهيار البوت عند الأخطاء المفاجئة
-// ========================================
+// منع كراش البوت عند أي خطأ مفاجئ
 process.on("uncaughtException", (err) => {
-    console.error("⚠️ خطأ غير متوقع تم اعتراضه لمنع إغلاق البوت:", err);
+    console.error("⚠️ خطأ غير متوقع:", err);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-    console.error("⚠️ رفض غير معالج في الـ Promises:", reason);
+    console.error("⚠️ رفض غير معالج:", reason);
 });
 
 // ========================================
-// الإعدادات
+// الإعدادات الرئيسية
 // ========================================
 const TOKEN = process.env.TOKEN;
 
@@ -34,7 +32,7 @@ const JAIL_ROLE_ID = "1541170009949347880";
 const JAIL_DATA_FILE = "./jail.json";
 
 // ========================================
-// إنشاء وقراءة وحفظ البيانات
+// التعامل مع ملف قاعدة البيانات jail.json
 // ========================================
 if (!fs.existsSync(JAIL_DATA_FILE)) {
     fs.writeFileSync(JAIL_DATA_FILE, JSON.stringify({}, null, 2));
@@ -53,7 +51,7 @@ function saveJailData(data) {
 }
 
 // ========================================
-// إنشاء البوت
+// إنشاء البوت وتحديد الصلاحيات
 // ========================================
 const client = new Client({
     intents: [
@@ -68,9 +66,6 @@ client.once("clientReady", () => {
     console.log(`✅ البوت متصل الآن بنجاح باسم: ${client.user.tag}`);
 });
 
-// ========================================
-// مساعدة الوظائف الصلاحية والاستهداف
-// ========================================
 function getPowerLevel(member) {
     if (member.id === BOT_OWNER_ID) return 3;
     if (member.roles.cache.has(OWNER_ROLE_ID)) return 2;
@@ -82,32 +77,40 @@ function canUseJail(member) {
     return getPowerLevel(member) >= 1;
 }
 
+// دالة جلب العضو المحدثة والمضمونة (تتعرف على المنشن والـ ID مباشرة)
 async function getTargetMember(message) {
-    const mentionedMember = message.mentions.members.first();
-    if (mentionedMember) return mentionedMember;
-
-    const args = message.content.trim().split(/\s+/);
-    const targetId = args[1];
-
-    if (!targetId || !/^\d{17,20}$/.test(targetId)) return null;
-
-    try {
-        return await message.guild.members.fetch(targetId);
-    } catch {
-        return null;
+    // 1. البحث عبر المنشن الصريح
+    if (message.mentions.members && message.mentions.members.size > 0) {
+        return message.mentions.members.first();
     }
+
+    // 2. البحث عن الـ ID داخل نص الرسالة واستخراجه
+    const match = message.content.match(/\d{17,20}/);
+    if (match) {
+        const targetId = match[0];
+        try {
+            return await message.guild.members.fetch(targetId);
+        } catch (e) {
+            console.error("لم يتم العثور على العضو بالـ ID:", targetId);
+            return null;
+        }
+    }
+
+    return null;
 }
 
 // ========================================
-// الأحداث والأوامر
+// الأحداث والأوامر (سجن / حرية)
 // ========================================
 client.on("messageCreate", async (message) => {
     if (message.author.bot || !message.guild) return;
 
+    const content = message.content.trim();
+
     // ----------------------------------------
     // أمر السجن
     // ----------------------------------------
-    if (message.content.startsWith("سجن")) {
+    if (content.startsWith("سجن")) {
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
@@ -146,7 +149,7 @@ client.on("messageCreate", async (message) => {
         if (!jailRole) return message.reply("❌ ما لقيت رتبة السجن، تأكد من الـID في الإعدادات");
         if (member.roles.cache.has(JAIL_ROLE_ID)) return message.reply("❌ هذا الشخص مسجون بالفعل");
 
-        // حفظ الرتب القديمة قبل سحبها
+        // حفظ الرتب
         const jailData = loadJailData();
         const oldRoles = member.roles.cache
             .filter(role => role.id !== message.guild.id && role.id !== JAIL_ROLE_ID && !role.managed)
@@ -162,7 +165,7 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
-            // سحب الرتب الممكنة فردياً بدون إيقاف أو تعليق البوت
+            // سحب الرتب الممكنة حبة حبة لمنع التعليق
             for (const roleId of oldRoles) {
                 const roleObj = message.guild.roles.cache.get(roleId);
                 if (roleObj && roleObj.position < message.guild.members.me.roles.highest.position) {
@@ -170,20 +173,19 @@ client.on("messageCreate", async (message) => {
                 }
             }
 
-            // إعطاء رتبة السجن
             await member.roles.add(jailRole);
             await processingMessage.edit(`✅ تم سجن العضو ${member}`);
 
         } catch (error) {
             console.error("خطأ أثناء السجن:", error);
-            await processingMessage.edit("❌ حدث خطأ أثناء تنفيذ السجن، تأكد أن رتبة البوت أعلى من رتبة السجن في قائمة الرتب.");
+            await processingMessage.edit("❌ حدث خطأ أثناء تنفيذ السجن (تأكد أن رتبة البوت أعلى من رتبة العضو ورتبة السجن).");
         }
     }
 
     // ----------------------------------------
     // أمر فك السجن
     // ----------------------------------------
-    if (message.content.startsWith("حرية") || message.content.startsWith("حريه")) {
+    if (content.startsWith("حرية") || content.startsWith("حريه")) {
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
@@ -223,12 +225,12 @@ client.on("messageCreate", async (message) => {
 });
 
 // ========================================
-// تسجيل الدخول مع التحقق من التوكن
+// تشغيل البوت
 // ========================================
 if (!TOKEN) {
-    console.error("❌ خطأ: لم يتم العثور على TOKEN في متغيرات البيئة (Environment Variables)!");
+    console.error("❌ خطأ: لم يتم العثور على TOKEN!");
 } else {
     client.login(TOKEN).catch(err => {
-        console.error("❌ فشل تسجيل الدخول للديسكورد: تأكد من صحة التوكن!", err);
+        console.error("❌ فشل تسجيل الدخول:", err);
     });
 }
