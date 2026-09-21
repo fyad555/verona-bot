@@ -1,10 +1,25 @@
 const express = require('express');
 const app = express();
-app.get('/', (req, res) => res.send('Bot is active!'));
-app.listen(process.env.PORT || 3000);
+
+// مسار للحفاظ على نشاط البوت 24/7
+app.get('/', (req, res) => res.send('Bot is active and running!'));
+app.listen(process.env.PORT || 3000, () => {
+    console.log("🌐 HTTP Server running to keep bot online.");
+});
 
 const { Client, GatewayIntentBits } = require("discord.js");
 const fs = require("fs");
+
+// ========================================
+// منع انهيار البوت عند الأخطاء المفاجئة
+// ========================================
+process.on("uncaughtException", (err) => {
+    console.error("⚠️ خطأ غير متوقع تم اعتراضه لمنع إغلاق البوت:", err);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("⚠️ رفض غير معالج في الـ Promises:", reason);
+});
 
 // ========================================
 // الإعدادات
@@ -50,7 +65,7 @@ const client = new Client({
 });
 
 client.once("clientReady", () => {
-    console.log(`✅ البوت اشتغل: ${client.user.tag}`);
+    console.log(`✅ البوت متصل الآن بنجاح باسم: ${client.user.tag}`);
 });
 
 // ========================================
@@ -208,6 +223,12 @@ client.on("messageCreate", async (message) => {
 });
 
 // ========================================
-// تسجيل الدخول
+// تسجيل الدخول مع التحقق من التوكن
 // ========================================
-client.login(TOKEN);
+if (!TOKEN) {
+    console.error("❌ خطأ: لم يتم العثور على TOKEN في متغيرات البيئة (Environment Variables)!");
+} else {
+    client.login(TOKEN).catch(err => {
+        console.error("❌ فشل تسجيل الدخول للديسكورد: تأكد من صحة التوكن!", err);
+    });
+}
