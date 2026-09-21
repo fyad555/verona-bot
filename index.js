@@ -146,11 +146,6 @@ client.on("messageCreate", async (message) => {
 
     if (message.author.bot) return;
     if (!message.guild) return;
-
-    // ========================================
-    // أمر السجن
-    // ========================================
-
 // ========================================
     // أمر السجن
     // ========================================
@@ -160,7 +155,9 @@ client.on("messageCreate", async (message) => {
         if (!canUseJail(message.member)) return;
 
         const member = await getTargetMember(message);
-        if (!member) return;
+        if (!member) {
+            return message.reply("❌ اكتب ID الصحيح للشخص أو سو له منشن!");
+        }
 
         if (member.user.bot) {
             return message.reply("❌ ما تقدر تسجن البوتات");
@@ -175,7 +172,7 @@ client.on("messageCreate", async (message) => {
         }
 
         if (member.id === message.guild.ownerId) {
-            return message.reply("ذا دادي السيرفر اذلف");
+            return message.reply("من جدك انت ؟ ");
         }
 
         if (member.id === "1133082717777576089") {
@@ -183,7 +180,7 @@ client.on("messageCreate", async (message) => {
         }
 
         if (member.id === "1412618243461480489") {
-             return message.reply("تبي تسجن الملكة ؟ محروم");
+            return message.reply("تبي تسجن الملكه محروم");
         }
 
         if (member.roles.cache.has(OWNER_ROLE_ID)) {
@@ -245,7 +242,6 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
-            // سحب الرتب التي يستطيع البوت سحبها فقط بدون تعليق الكود
             const botHighestRole = message.guild.members.me.roles.highest;
             const rolesToRemove = member.roles.cache.filter(role => 
                 role.id !== message.guild.id && 
@@ -257,7 +253,6 @@ client.on("messageCreate", async (message) => {
                 await member.roles.remove(rolesToRemove).catch(() => {});
             }
 
-            // إضافة رتبة السجن
             await member.roles.add(jailRole);
 
             await processingMessage.edit(`✅ تم سجن العضو ${member}`);
@@ -267,11 +262,8 @@ client.on("messageCreate", async (message) => {
             await processingMessage.edit("❌ حدث خطأ أثناء سحب الرتب، تأكد من ترتيب رتبة البوت بالسيرفر!");
         }
     }
-
-    // ========================================
-    // أمر فك السجن
-    // ========================================
-
+    
+   
     if (message.content.startsWith("حرية") || message.content.startsWith("حريه")) {
 
         if (!canUseJail(message.member)) return;
