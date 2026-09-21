@@ -151,6 +151,10 @@ client.on("messageCreate", async (message) => {
     // أمر السجن
     // ========================================
 
+// ========================================
+    // أمر السجن
+    // ========================================
+
     if (message.content.startsWith("سجن")) {
 
         if (!canUseJail(message.member)) return;
@@ -171,15 +175,15 @@ client.on("messageCreate", async (message) => {
         }
 
         if (member.id === message.guild.ownerId) {
-            return message.reply("ذا دادي السيرفر اقلب وجهك ");
+            return message.reply("ذا دادي السيرفر اذلف");
         }
 
         if (member.id === "1133082717777576089") {
             return message.reply("قم انقلع تسجن حسنة الجميع تخسي");
         }
-        
+
         if (member.id === "1412618243461480489") {
-            return message.reply("تبي تسجن الملكه محروم");
+             return message.reply("تبي تسجن الملكة ؟ محروم");
         }
 
         if (member.roles.cache.has(OWNER_ROLE_ID)) {
@@ -216,11 +220,11 @@ client.on("messageCreate", async (message) => {
         }
 
         if (!member.manageable) {
-            return message.reply("❌ ما أقدر أعدل رتب هذا الشخص، تأكد أن رتبة البوت أعلى منه");
+            return message.reply("❌ ما أقدر أعدل رتب هذا الشخص، تأكد أن رتبة البوت أعلى منه في القائمة (Server Settings -> Roles)");
         }
 
         if (jailRole.position >= message.guild.members.me.roles.highest.position) {
-            return message.reply("❌ رتبة السجن أعلى من رتبة البوت");
+            return message.reply("❌ رتبة السجن أعلى من رتبة البوت في ترتيب الرتب");
         }
 
         const jailData = loadJailData();
@@ -241,27 +245,26 @@ client.on("messageCreate", async (message) => {
         const processingMessage = await message.reply("⏳ ...جاري سجن العضو");
 
         try {
+            // سحب الرتب التي يستطيع البوت سحبها فقط بدون تعليق الكود
+            const botHighestRole = message.guild.members.me.roles.highest;
             const rolesToRemove = member.roles.cache.filter(role => 
                 role.id !== message.guild.id && 
-                !role.managed
+                !role.managed &&
+                role.position < botHighestRole.position
             );
-            await member.roles.remove(rolesToRemove);
+
+            if (rolesToRemove.size > 0) {
+                await member.roles.remove(rolesToRemove).catch(() => {});
+            }
+
+            // إضافة رتبة السجن
             await member.roles.add(jailRole);
 
             await processingMessage.edit(`✅ تم سجن العضو ${member}`);
 
         } catch (error) {
             console.error("خطأ أثناء السجن:", error);
-
-            try {
-                await member.roles.add(oldRoles);
-                delete jailData[member.id];
-                saveJailData(jailData);
-            } catch (restoreError) {
-                console.error("❌ فشل استرجاع الرتب:", restoreError);
-            }
-
-            await processingMessage.edit("❌ صار خطأ أثناء السجن وتمت محاولة استرجاع رتب العضو");
+            await processingMessage.edit("❌ حدث خطأ أثناء سحب الرتب، تأكد من ترتيب رتبة البوت بالسيرفر!");
         }
     }
 
